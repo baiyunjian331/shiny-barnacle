@@ -106,7 +106,7 @@ TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
 GOOGLE_CLIENT_ID=your_google_client_id_here
 GOOGLE_CLIENT_SECRET=your_google_client_secret_here
 GOOGLE_DRIVE_FOLDER_ID=your_teamdrive_folder_id_here   # 可为空表示上传到个人盘根目录
-GOOGLE_TOKEN_FILE=/home/ubuntu/telegram-bot/token.json # 凭证持久化路径
+GOOGLE_TOKEN_FILE=/data/token.json                     # 凭证持久化路径（Docker 默认）
 
 # Logging
 LOG_LEVEL=INFO
@@ -184,6 +184,56 @@ Script steps / 脚本主要流程：
 6. Report status & log command
 
 Requires sudo privileges. 运行脚本需要 `sudo` 权限。
+
+---
+
+## Docker Deployment / Docker 化部署
+
+| EN | 中文 |
+| --- | --- |
+| Build-once, run-anywhere using the provided Dockerfile. The container stores Google Drive credentials in `/data/token.json`, enabling persistent authorization across restarts. | 借助仓库内的 Dockerfile，可一键构建镜像并跨平台运行。容器内凭证保存在 `/data/token.json`，即使重启也能保持授权状态。 |
+
+### Build & Run Locally / 本地构建与运行
+```bash
+# Build image / 构建镜像
+docker build -t telegram-drive-bot .
+
+# Run container with persistent volume
+docker run -d \
+  --name telegram-drive-bot \
+  --env-file .env \
+  -v $(pwd)/data:/data \
+  telegram-drive-bot
+```
+- `.env` provides runtime secrets (same format as above).  
+  `.env` 用于提供运行时密钥。
+- `-v $(pwd)/data:/data` stores `token.json` and other persistent data locally.  
+  该挂载确保 `token.json` 等持久化数据保存在宿主机。
+
+### Deploy on Render / 部署到 Render
+1. Log in at [render.com](https://render.com) → **New +** → **Web Service**.  
+   登录 Render → 新建 Web Service。
+2. Connect your GitHub repository containing this project.  
+   连接包含本项目的 GitHub 仓库。
+3. Configure:
+   - **Environment**: Docker  
+   - **Build / Start Command**: leave blank (Dockerfile handles it)  
+   - **Persistent Disk**: Name `botdata`, Mount Path `/data`, Size ≥ 1 GB
+4. Add environment variables in the dashboard:  
+   `TELEGRAM_BOT_TOKEN`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_DRIVE_FOLDER_ID`
+5. Deploy; Render builds the image from `Dockerfile` and starts the bot. Pushing to `main` triggers rebuilds automatically.
+
+### Deploy on Railway / 部署到 Railway
+1. Sign in at [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub repo**.  
+2. Ensure “Dockerfile” is detected; no custom build command needed.  
+3. Add environment variables as above.  
+4. Mount a persistent volume named `data` to `/data` for credential storage.  
+5. Deploy; logs will show the familiar startup messages.
+
+### Verification / 验证
+- Dashboard logs should display:  
+  `🤖 机器人启动中……` and `📡 等待 Telegram 消息中……`
+- Run `/auth` in Telegram; `token.json` will appear inside `/data`, confirming persistence.
 
 ---
 
