@@ -107,6 +107,8 @@ GOOGLE_CLIENT_ID=your_google_client_id_here
 GOOGLE_CLIENT_SECRET=your_google_client_secret_here
 GOOGLE_DRIVE_FOLDER_ID=your_teamdrive_folder_id_here   # 可为空表示上传到个人盘根目录
 GOOGLE_TOKEN_FILE=/data/token.json                     # 凭证持久化路径（Docker 默认）
+# Optional: embed client_secrets.json as Base64
+# GOOGLE_CLIENT_SECRETS_B64=base64_of_client_secrets_json
 
 # Logging
 LOG_LEVEL=INFO
@@ -115,6 +117,8 @@ LOG_LEVEL=INFO
 - **Do not commit** `.env`; use `.env.example` to share templates.  
   `.env` 含敏感信息，严禁提交；可保留 `.env.example` 作为模板。
 - Set permissions / 设置权限：`chmod 600 .env token.json`
+- Optional: set `GOOGLE_CLIENT_SECRETS_B64` with the Base64-encoded `client_secrets.json` so deployment scripts & Docker automatically recreate the file.  
+  可选：设置 `GOOGLE_CLIENT_SECRETS_B64`，部署脚本与 Docker 会自动生成 `client_secrets.json`。
 
 ---
 
@@ -179,9 +183,10 @@ Script steps / 脚本主要流程：
 1. `apt update && apt upgrade`
 2. Create virtualenv if missing (`python3.10 -m venv`)
 3. Activate venv & install `requirements.txt`
-4. Ensure `.env` exists
-5. Reload systemd, stop old service, start new instance
-6. Report status & log command
+4. Rebuild `client_secrets.json` automatically when `GOOGLE_CLIENT_SECRETS_B64` is provided (otherwise warn)
+5. Ensure `.env` exists
+6. Reload systemd, stop old service, start new instance
+7. Report status & log command
 
 Requires sudo privileges. 运行脚本需要 `sudo` 权限。
 
@@ -209,6 +214,8 @@ docker run -d \
   `.env` 用于提供运行时密钥。
 - `-v $(pwd)/data:/data` stores `token.json` and other persistent data locally.  
   该挂载确保 `token.json` 等持久化数据保存在宿主机。
+- If `GOOGLE_CLIENT_SECRETS_B64` is supplied, the container entrypoint recreates `client_secrets.json` automatically.  
+  若设置 `GOOGLE_CLIENT_SECRETS_B64`，容器入口脚本会自动生成 `client_secrets.json`。
 
 ### Deploy on Render / 部署到 Render
 1. Log in at [render.com](https://render.com) → **New +** → **Web Service**.  
@@ -226,7 +233,7 @@ docker run -d \
 ### Deploy on Railway / 部署到 Railway
 1. Sign in at [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub repo**.  
 2. Ensure “Dockerfile” is detected; no custom build command needed.  
-3. Add environment variables as above.  
+3. Add environment variables as above. Optional: include GOOGLE_CLIENT_SECRETS_B64 so the container rebuilds client_secrets.json.  
 4. Mount a persistent volume named `data` to `/data` for credential storage.  
 5. Deploy; logs will show the familiar startup messages.
 
@@ -242,6 +249,7 @@ docker run -d \
 - `.env`, `token.json`, `__pycache__/` are ignored by `.gitignore` to avoid accidental commits.
 - Restrict permissions on secret files: `chmod 600 .env token.json`.
 - Consider rotating tokens regularly; revoke compromised credentials immediately.
+- Keep Base64 secrets such as `GOOGLE_CLIENT_SECRETS_B64` in managed secret stores (Render/Railway env vars, Vault, etc.), never committed to Git.
 - Optional secret scanners (选用)：`git-secrets`, `trufflehog`, `gitleaks` 等。
 - For multi-instance deployments, back up `token.json` in encrypted storage or a shared secret manager.
 

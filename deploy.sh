@@ -17,6 +17,17 @@ echo "📦 Updating system..."
 sudo apt update -y && sudo apt upgrade -y
 
 # -----------------------------------------------
+# 🔐 Optionally rebuild client_secrets.json from Base64
+# -----------------------------------------------
+if [ -n "$GOOGLE_CLIENT_SECRETS_B64" ]; then
+    echo "🧾 Recreating client_secrets.json from GOOGLE_CLIENT_SECRETS_B64..."
+    echo "$GOOGLE_CLIENT_SECRETS_B64" | base64 --decode > "$APP_DIR/client_secrets.json"
+    chmod 600 "$APP_DIR/client_secrets.json"
+elif [ ! -f "$APP_DIR/client_secrets.json" ]; then
+    echo "⚠️ client_secrets.json not found. Provide GOOGLE_CLIENT_SECRETS_B64 or place the file manually."
+fi
+
+# -----------------------------------------------
 # 2️⃣ Check and create virtual environment
 # -----------------------------------------------
 if [ ! -d "$VENV_DIR" ]; then

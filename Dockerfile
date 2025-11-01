@@ -12,6 +12,10 @@ RUN apt-get update && apt-get install -y \
 # Copy project files
 COPY . /app
 
+# Copy entrypoint script
+COPY docker-entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
 # Install Python dependencies
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
@@ -24,4 +28,5 @@ VOLUME ["/data"]
 ENV PYTHONUNBUFFERED=1
 
 # Start the bot
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["python3", "bot.py"]
