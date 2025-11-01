@@ -13,6 +13,7 @@ from telegram.ext import (
     filters,
 )
 from upload import upload
+from google_utils import configure_gauth, ensure_token_storage
 from creds import TELEGRAM_BOT_TOKEN, GOOGLE_TOKEN_FILE
 from pySmartDL import SmartDL
 from pydrive2.auth import GoogleAuth
@@ -35,14 +36,8 @@ from plugins.dpbox import DPBOX
 from plugins.wdl import wget_dl
 from mega import Mega
 
-gauth = GoogleAuth()
+gauth = configure_gauth(GoogleAuth())
 TOKEN_FILE_PATH = GOOGLE_TOKEN_FILE
-
-
-def ensure_token_storage() -> None:
-    token_dir = os.path.dirname(TOKEN_FILE_PATH)
-    if token_dir and not os.path.exists(token_dir):
-        os.makedirs(token_dir, exist_ok=True)
 
 
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

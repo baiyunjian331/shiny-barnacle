@@ -106,7 +106,7 @@ TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
 GOOGLE_CLIENT_ID=your_google_client_id_here
 GOOGLE_CLIENT_SECRET=your_google_client_secret_here
 GOOGLE_DRIVE_FOLDER_ID=your_teamdrive_folder_id_here   # 可为空表示上传到个人盘根目录
-GOOGLE_TOKEN_FILE=/data/token.json                     # 凭证持久化路径（Docker 默认）
+GOOGLE_TOKEN_FILE=~/.config/google-drive-uploader/token.json  # 凭证默认保存位置，可覆盖
 # Optional: embed client_secrets.json as Base64
 # GOOGLE_CLIENT_SECRETS_B64=base64_of_client_secrets_json
 
@@ -196,52 +196,62 @@ Requires sudo privileges. 运行脚本需要 `sudo` 权限。
 
 | EN | 中文 |
 | --- | --- |
-| Build-once, run-anywhere using the provided Dockerfile. The container stores Google Drive credentials in `/data/token.json`, enabling persistent authorization across restarts. | 借助仓库内的 Dockerfile，可一键构建镜像并跨平台运行。容器内凭证保存在 `/data/token.json`，即使重启也能保持授权状态。 |
+| Build once with the provided Dockerfile. Mount a volume and set `GOOGLE_TOKEN_FILE=/data/token.json` so Google Drive credentials survive container restarts. | 借助仓库自带的 Dockerfile 可一次构建、随处运行。挂载数据卷并设置 `GOOGLE_TOKEN_FILE=/data/token.json`，即可在容器重启后保留 Google 授权凭证。 |
 
 ### Build & Run Locally / 本地构建与运行
 ```bash
 # Build image / 构建镜像
 docker build -t telegram-drive-bot .
 
-# Run container with persistent volume
+# Run container with persistent credential volume
 docker run -d \
   --name telegram-drive-bot \
   --env-file .env \
+  -e GOOGLE_TOKEN_FILE=/data/token.json \
   -v $(pwd)/data:/data \
   telegram-drive-bot
 ```
-- `.env` provides runtime secrets (same format as above).  
+- `.env` provides runtime secrets (same format as above).
   `.env` 用于提供运行时密钥。
-- `-v $(pwd)/data:/data` stores `token.json` and other persistent data locally.  
-  该挂载确保 `token.json` 等持久化数据保存在宿主机。
-- If `GOOGLE_CLIENT_SECRETS_B64` is supplied, the container entrypoint recreates `client_secrets.json` automatically.  
-  若设置 `GOOGLE_CLIENT_SECRETS_B64`，容器入口脚本会自动生成 `client_secrets.json`。
+- `-e GOOGLE_TOKEN_FILE=/data/token.json` directs the bot to persist tokens inside the mounted volume.
+  通过设置 `GOOGLE_TOKEN_FILE=/data/token.json`，可将凭证保存到挂载的数据卷。
+- `-v $(pwd)/data:/data` stores `token.json` and other persistent data locally.
+  将 `$(pwd)/data` 挂载到 `/data`，即可在宿主机持久化 `token.json` 等文件。
+- If `GOOGLE_CLIENT_SECRETS_B64` is supplied, the container entrypoint recreates `client_secrets.json` automatically.
+  若提供 `GOOGLE_CLIENT_SECRETS_B64`，容器入口脚本会自动生成 `client_secrets.json`。
 
 ### Deploy on Render / 部署到 Render
-1. Log in at [render.com](https://render.com) → **New +** → **Web Service**.  
-   登录 Render → 新建 Web Service。
-2. Connect your GitHub repository containing this project.  
-   连接包含本项目的 GitHub 仓库。
+1. Log in at [render.com](https://render.com) → **New +** → **Web Service**。
+   登录 Render，依次选择 “New +” → “Web Service”。
+2. Connect your GitHub repository containing this project。
+   关联包含本项目的 GitHub 仓库。
 3. Configure:
-   - **Environment**: Docker  
-   - **Build / Start Command**: leave blank (Dockerfile handles it)  
+   - **Environment**: Docker
+   - **Build / Start Command**: leave blank (Dockerfile handles it)
    - **Persistent Disk**: Name `botdata`, Mount Path `/data`, Size ≥ 1 GB
-4. Add environment variables in the dashboard:  
-   `TELEGRAM_BOT_TOKEN`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_DRIVE_FOLDER_ID`
-5. Deploy; Render builds the image from `Dockerfile` and starts the bot. Pushing to `main` triggers rebuilds automatically.
+4. Add environment variables in the dashboard:
+   `TELEGRAM_BOT_TOKEN`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_DRIVE_FOLDER_ID`, `GOOGLE_TOKEN_FILE=/data/token.json`
+5. Deploy; Render builds the image from `Dockerfile` and starts the bot. Pushing to `main` triggers automatic rebuilds.
+   部署后 Render 会根据 Dockerfile 构建镜像并启动机器人，后续推送到 `main` 会自动触发重建。
 
 ### Deploy on Railway / 部署到 Railway
-1. Sign in at [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub repo**.  
-2. Ensure “Dockerfile” is detected; no custom build command needed.  
-3. Add environment variables as above. Optional: include GOOGLE_CLIENT_SECRETS_B64 so the container rebuilds client_secrets.json.  
-4. Mount a persistent volume named `data` to `/data` for credential storage.  
-5. Deploy; logs will show the familiar startup messages.
+1. Sign in at [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub repo**。
+   登录 Railway，选择 “New Project” → “Deploy from GitHub repo”。
+2. Ensure “Dockerfile” is detected; no custom build command is required。
+   确认平台识别到 Dockerfile，无需额外构建命令。
+3. Add environment variables as above (include `GOOGLE_TOKEN_FILE=/data/token.json` and, optionally, `GOOGLE_CLIENT_SECRETS_B64`)。
+   添加与上方相同的环境变量（包含 `GOOGLE_TOKEN_FILE=/data/token.json`，可选添加 `GOOGLE_CLIENT_SECRETS_B64`）。
+4. Mount a persistent volume named `data` to `/data` for credential storage。
+   新建名为 `data` 的持久化卷，并挂载到 `/data`。
+5. Deploy; logs will show the familiar startup messages。
+   部署后查看日志，可见机器人启动的提示信息。
 
 ### Verification / 验证
-- Dashboard logs should display:  
-  `🤖 机器人启动中……` and `📡 等待 Telegram 消息中……`
+- Dashboard logs should display `🤖 机器人启动中…` 和 `📡 等待 Telegram 消息中…`。
 - Run `/auth` in Telegram; `token.json` will appear inside `/data`, confirming persistence.
+  在 Telegram 中执行 `/auth` 后，可在 `/data` 目录看到 `token.json`，验证授权已持久化。
 
+---
 ---
 
 ## Security Best Practices / 安全实践

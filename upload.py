@@ -4,21 +4,17 @@ import os
 import os.path as path
 from typing import Optional, Tuple
 
-from creds import GOOGLE_DRIVE_FOLDER_ID, GOOGLE_TOKEN_FILE
 from googleapiclient.errors import HttpError
 from pydrive2.auth import GoogleAuth
 from pydrive2.drive import GoogleDrive
+
+from creds import GOOGLE_DRIVE_FOLDER_ID, GOOGLE_TOKEN_FILE
+from google_utils import configure_gauth, ensure_token_storage
 
 logger = logging.getLogger(__name__)
 
 FOLDER_MIME_TYPE = "application/vnd.google-apps.folder"
 TOKEN_FILE_PATH = GOOGLE_TOKEN_FILE
-
-
-def ensure_token_storage() -> None:
-    token_dir = os.path.dirname(TOKEN_FILE_PATH)
-    if token_dir and not os.path.exists(token_dir):
-        os.makedirs(token_dir, exist_ok=True)
 
 
 def _resolve_destination_folder(
@@ -86,7 +82,7 @@ def _resolve_destination_folder(
 
 
 def upload(filename: str, update, context, parent_folder: str = None) -> str:
-    gauth: GoogleAuth = GoogleAuth()
+    gauth: GoogleAuth = configure_gauth(GoogleAuth())
     ensure_token_storage()
     gauth.LoadCredentialsFile(TOKEN_FILE_PATH)
 
