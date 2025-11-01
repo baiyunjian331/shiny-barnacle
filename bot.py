@@ -45,17 +45,6 @@ def ensure_token_storage() -> None:
         os.makedirs(token_dir, exist_ok=True)
 
 
-######################################################################################
-
-bot_token = TELEGRAM_BOT_TOKEN
-bot = Bot(token=bot_token)
-updater = Updater(bot=bot, workers=8, use_context=True)
-dp = updater.dispatcher                                                          #
-#
-
-######################################################################################
-
-
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_chat is None:
         return
